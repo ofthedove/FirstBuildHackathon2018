@@ -64,7 +64,7 @@ int ScanInputs(void)
 
 void CalculateSteps()
 {
-  instance.transitioning = false;
+  instance.transitioning = true;
   instance.stepNum = 0;
   instance.floatState[0] = 0;
   instance.floatState[1] = 0;
@@ -74,13 +74,25 @@ void CalculateSteps()
   int diffGreen = instance.nextState.color.green - instance.prevState.color.green;
   int diffBlue  = instance.nextState.color.blue  - instance.prevState.color.blue;
 
-  instance.floatState[0] = (float)diffRed   / (float)stepsBetweenStates;
-  instance.floatState[1] = (float)diffGreen / (float)stepsBetweenStates;
-  instance.floatState[2] = (float)diffBlue  / (float)stepsBetweenStates;
+  instance.stepValues[0] = (float)diffRed   / (float)stepsBetweenStates;
+  instance.stepValues[1] = (float)diffGreen / (float)stepsBetweenStates;
+  instance.stepValues[2] = (float)diffBlue  / (float)stepsBetweenStates;
 }
 
 void Step()
 {
+  instance.stepNum++;
+  if (instance.stepNum > stepsBetweenStates)
+  {
+    instance.transitioning = false;
+    return;
+  }
+  
+  Serial.print("STep Num: ");
+  Serial.println(instance.stepNum);
+//  Serial.print("Next State: ");
+//  Serial.println(instance.nextStateNum);
+  
   instance.floatState[0] += instance.stepValues[0];
   instance.floatState[1] += instance.stepValues[1];
   instance.floatState[2] += instance.stepValues[2];
@@ -119,12 +131,20 @@ void UpdateStrip(void)
     colors[i] = instance.curState.color;
   }
   ledStrip.write(colors, ledCount, brightness);
+  Serial.print("Writing ");
+  Serial.print(instance.curState.color.red);
+  Serial.print(",");
+  Serial.print(instance.curState.color.green);
+  Serial.print(",");
+  Serial.println(instance.curState.color.blue);
 }
 
 void setup()
 {
   pinMode(logicInput1, INPUT);
   pinMode(logicInput2, INPUT);
+
+  Serial.begin(9600);
 }
 
 void loop()
@@ -132,8 +152,20 @@ void loop()
   int inputState = ScanInputs();
 
   UpdateState(inputState);
+
+  Serial.print("Read ");
+  Serial.print(inputState);
+  Serial.println(" on input");
   
   UpdateStrip();
+
+  Serial.print("Target ");
+  Serial.print(instance.nextState.color.red);
+  Serial.print(",");
+  Serial.print(instance.nextState.color.green);
+  Serial.print(",");
+  Serial.println(instance.nextState.color.blue);
+  Serial.println();
   
   delay(10);
 }
