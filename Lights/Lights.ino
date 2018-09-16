@@ -14,33 +14,126 @@
 // Define which pins to use.
 const uint8_t dataPin = 11;
 const uint8_t clockPin = 12;
+const uint8_t logicInput1 = 3;
+const uint8_t logicInput2 = 4;
 
 // Create an object for writing to the LED strip.
 APA102<dataPin, clockPin> ledStrip;
 
-// Set the number of LEDs to control.
-const uint16_t ledCount = 60;
+enum {
+  ledCount = 60,
+  brightness = 1,
+  stepsBetweenStates = 50, // Time between states is (steps * 10) milliseconds
+};
 
 // Create a buffer for holding the colors (3 bytes per color).
 rgb_color colors[ledCount];
 
-// Set the brightness to use (the maximum is 31).
-const uint8_t brightness = 1;
+//-------------------------------------------------------------
+typedef struct {
+  rgb_color color;
+} State_t;
+
+State_t states[] = {
+  {rgb_color(0,0,0)},
+  {rgb_color(255,0,0)},
+  {rgb_color(0,0,255)}
+};
+
+typedef struct{
+  State_t prevState;
+  State_t curState;
+  State_t nextState;
+  int nextStateNum;
+  bool transitioning;
+  unsigned int stepNum;
+  float floatState[3];
+  float stepValues[3];
+} Instance_t;
+
+Instance_t instance = {states[0], states[0], states[0], 0, false, 0, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
+//-------------------------------------------------------------
+
+int ScanInputs(void)
+{
+  int result = 0;
+  result |= digitalRead(logicInput1) << 0;
+  result |= digitalRead(logicInput2) << 1;
+  return result;
+}
+
+void CalculateSteps()
+{
+  instance.transitioning = false;
+  instance.stepNum = 0;
+  instance.floatState[0] = 0;
+  instance.floatState[1] = 0;
+  instance.floatState[2] = 0;
+
+  int diffRed   = instance.nextState.color.red   - instance.prevState.color.red;
+  int diffGreen = instance.nextState.color.green - instance.prevState.color.green;
+  int diffBlue  = instance.nextState.color.blue  - instance.prevState.color.blue;
+
+  instance.floatState[0] = (float)diffRed   / (float)stepsBetweenStates;
+  instance.floatState[1] = (float)diffGreen / (float)stepsBetweenStates;
+  instance.floatState[2] = (float)diffBlue  / (float)stepsBetweenStates;
+}
+
+void Step()
+{
+  instance.floatState[0] += instance.stepValues[0];
+  instance.floatState[1] += instance.stepValues[1];
+  instance.floatState[2] += instance.stepValues[2];
+
+  instance.curState.color.red =   (int)instance.floatState[0];
+  instance.curState.color.green = (int)instance.floatState[1];
+  instance.curState.color.blue =  (int)instance.floatState[2];
+}
+
+void UpdateState(int inputState)
+{
+  if (instance.nextStateNum == inputState)
+  {
+    if (instance.transitioning)
+    {
+      Step();
+    }
+  } else {
+    if (instance.transitioning)
+    {
+      instance.prevState = instance.curState;
+    } else { 
+      instance.prevState = instance.nextState;
+    }
+    instance.nextState = states[inputState];
+    instance.nextStateNum = inputState;
+    CalculateSteps();
+    Step();
+  }
+}
+
+void UpdateStrip(void)
+{
+  for(int i = 0; i < ledCount; i++)
+  {
+    colors[i] = instance.curState.color;
+  }
+  ledStrip.write(colors, ledCount, brightness);
+}
 
 void setup()
 {
+  pinMode(logicInput1, INPUT);
+  pinMode(logicInput2, INPUT);
 }
 
 void loop()
 {
-  uint8_t time = millis() >> 2;
-  for(uint16_t i = 0; i < ledCount; i++)
-  {
-    uint8_t x = time - i * 8;
-    colors[i] = rgb_color(x, 255 - x, x);
-  }
+  int inputState = ScanInputs();
 
-  ledStrip.write(colors, ledCount, brightness);
-
+  UpdateState(inputState);
+  
+  UpdateStrip();
+  
   delay(10);
 }
