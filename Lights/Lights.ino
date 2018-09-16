@@ -22,7 +22,7 @@ APA102<dataPin, clockPin> ledStrip;
 
 enum {
   ledCount = 60,
-  brightness = 1,
+  brightness = 10,
   stepsBetweenStates = 50, // Time between states is (steps * 10) milliseconds
 };
 
