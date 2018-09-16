@@ -35,7 +35,7 @@ typedef struct {
 } State_t;
 
 State_t states[] = {
-  {rgb_color(0,0,0)},
+  {rgb_color(10,10,10)},
   {rgb_color(255,0,0)},
   {rgb_color(0,0,255)}
 };
@@ -85,13 +85,14 @@ void Step()
   if (instance.stepNum > stepsBetweenStates)
   {
     instance.transitioning = false;
+    instance.curState.color.red =   instance.nextState[0];
+    instance.curState.color.green = instance.nextState[1];
+    instance.curState.color.blue =  instance.nextState[2];
     return;
   }
   
   Serial.print("STep Num: ");
   Serial.println(instance.stepNum);
-//  Serial.print("Next State: ");
-//  Serial.println(instance.nextStateNum);
   
   instance.floatState[0] += instance.stepValues[0];
   instance.floatState[1] += instance.stepValues[1];
